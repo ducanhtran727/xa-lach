@@ -1,9 +1,7 @@
 const SPREADSHEET_ID = 'DIEN_ID_GOOGLE_SHEET'
 const TAB_NAME = 'Đơn hàng'
-const FIELDS = [
-  'full_name', 'phone_number', 'address', 'commune_id', 'district_id',
-  'province_id', 'package',
-]
+const FIELDS = ['full_name', 'phone_number', 'address', 'package']
+const HEADERS = ['Họ tên', 'Số điện thoại', 'Địa chỉ giao hàng', 'Gói hạt giống']
 
 function doGet() {
   try {
@@ -15,13 +13,9 @@ function doGet() {
 }
 
 function doPost(e) {
-  const fields = e.parameter
-  const orderId = String(fields.order_id || '')
+  const fields = e?.parameter || {}
   const values = FIELDS.map((field) => String(fields[field] || '').trim())
-  const requiredFields = ['full_name', 'phone_number', 'address', 'package']
-  if (!/^[a-f0-9-]{36}$/i.test(orderId) ||
-      requiredFields.some((field) => !values[FIELDS.indexOf(field)]) ||
-      values.some((value) => value.length > 500)) {
+  if (values.some((value) => !value || value.length > 500)) {
     return reply(false, 'invalid_order')
   }
 
@@ -29,21 +23,17 @@ function doPost(e) {
   if (!lock.tryLock(10000)) return reply(false, 'busy')
   try {
     const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID)
-    const sheet = spreadsheet.getSheetByName(TAB_NAME) || spreadsheet.insertSheet(TAB_NAME)
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow([
-        'Mã đơn', 'Thời gian', 'Họ tên', 'Số điện thoại', 'Địa chỉ',
-        'Phường/Xã', 'Quận/Huyện', 'Tỉnh/Thành phố', 'Gói mua',
-      ])
+    let sheet = spreadsheet.getSheetByName(TAB_NAME) || spreadsheet.insertSheet(TAB_NAME)
+    if (!matchesOrderLayout(sheet)) {
+      const newTabName = TAB_NAME + ' (4 trường)'
+      sheet = spreadsheet.getSheetByName(newTabName) || spreadsheet.insertSheet(newTabName)
+      if (!matchesOrderLayout(sheet)) return reply(false, 'sheet_write')
     }
-    const lastRow = sheet.getLastRow()
-    const existing = lastRow > 1 && sheet.getRange(2, 1, lastRow - 1, 1)
-      .createTextFinder(orderId).matchEntireCell(true).findNext()
-    if (!existing) {
-      // Ghi dạng văn bản để giữ số 0 đầu số điện thoại và tránh công thức từ dữ liệu nhập.
-      sheet.appendRow([orderId, new Date(), ...values.map((value) => value ? "'" + value : '')])
-      SpreadsheetApp.flush()
-    }
+    if (sheet.getLastRow() === 0) sheet.appendRow(HEADERS)
+
+    // Giữ số 0 đầu số điện thoại và ghi dữ liệu nhập dưới dạng văn bản.
+    sheet.appendRow(values.map((value) => "'" + value))
+    SpreadsheetApp.flush()
     return reply(true)
   } catch (error) {
     console.error(error.message)
@@ -51,6 +41,13 @@ function doPost(e) {
   } finally {
     lock.releaseLock()
   }
+}
+
+function matchesOrderLayout(sheet) {
+  if (sheet.getLastRow() === 0) return true
+  if (sheet.getLastColumn() !== HEADERS.length) return false
+  const [headers] = sheet.getRange(1, 1, 1, HEADERS.length).getValues()
+  return HEADERS.every((header, index) => header === headers[index])
 }
 
 function reply(ok, code) {

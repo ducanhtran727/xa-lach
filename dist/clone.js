@@ -1,5 +1,5 @@
 // Dán URL Web App Google Apps Script kết thúc bằng /exec vào đây.
-const GOOGLE_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw7-FKDlmkvl5PbE1zDysY7_OTmAN4Acl7lAI5FI_ezDHHurXA6vCex3IiqePuAMqVVjg/exec'
+const GOOGLE_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzfqDoYJJH2dz8H_qpgkhaCJiPuZd2KJN6BxhT0Pu39zUSVLoBDRkqWOpAF_Ou-ZGh_vQ/exec'
 
 const byId = (id) => document.getElementById(id)
 const gallery = byId('w-jzvgamuh')
@@ -72,7 +72,7 @@ function openOrder() {
 }
 
 for (const id of ['w-qbrn1zhe', 'w-2hmqlp43']) {
-  action(byId(id), 'Đặt mua ngay', openOrder)
+  byId(id).addEventListener('click', openOrder)
 }
 popup.querySelector('.order-close').addEventListener('click', () => popup.close())
 popup.addEventListener('close', () => {
@@ -82,34 +82,7 @@ popup.addEventListener('close', () => {
 
 const submit = form.querySelector('button[type="submit"]')
 
-const order = document.createElement('dialog')
-order.className = 'order-summary'
-order.innerHTML = `
-  <h2>Thông tin đặt hàng</h2>
-  <p>Đơn chưa được gửi. Bạn có thể sao chép thông tin rồi gửi qua Zalo để đặt hàng.</p>
-  <textarea readonly aria-label="Nội dung đặt hàng"></textarea>
-  <div class="order-actions">
-    <button type="button" class="copy-order">Sao chép</button>
-    <a href="https://zalo.me/0388403111" target="_blank" rel="noopener">Mở Zalo</a>
-    <button type="button" class="close-summary">Quay lại</button>
-  </div>
-  <p class="copy-status" role="status"></p>
-`
-document.body.append(order)
-const orderText = order.querySelector('textarea')
-const copyStatus = order.querySelector('.copy-status')
-order.querySelector('.close-summary').addEventListener('click', () => order.close())
-order.querySelector('.copy-order').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(orderText.value)
-    copyStatus.textContent = 'Đã sao chép thông tin.'
-  } catch {
-    orderText.select()
-    copyStatus.textContent = 'Thông tin đã được chọn. Bạn có thể dùng lệnh sao chép của thiết bị.'
-  }
-})
-let pendingOrder
-
+const orderFields = ['full_name', 'phone_number', 'address', 'package']
 const sheetsErrors = {
   invalid_order: 'Google Sheets từ chối dữ liệu. Vui lòng kiểm tra lại thông tin đơn hàng.',
   busy: 'Hệ thống đang bận. Vui lòng thử lại sau vài giây.',
@@ -120,30 +93,18 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault()
   if (submit.disabled) return
 
-  const data = new URLSearchParams(new FormData(form))
-  const address = data.get('address').trim()
-  orderText.value = [
-    'Đặt hạt giống xà lách Sanchu F1',
-    `Họ tên: ${data.get('full_name').trim()}`,
-    `Số điện thoại: ${data.get('phone_number')}`,
-    `Địa chỉ: ${address}`,
-    `Gói đã chọn: ${data.get('package')}`,
-  ].join('\n')
-  copyStatus.textContent = ''
+  const formData = new FormData(form)
+  const data = new URLSearchParams(orderFields.map((field) => [
+    field, String(formData.get(field) ?? '').trim(),
+  ]))
   if (!GOOGLE_SHEETS_WEB_APP_URL) {
-    order.showModal()
+    feedback.textContent = 'Hệ thống đặt hàng chưa sẵn sàng.'
     return
   }
 
-  // Giữ cùng mã đơn khi khách gửi lại cùng dữ liệu sau lỗi mạng.
   submit.disabled = true
   feedback.textContent = 'Đang gửi đơn hàng…'
   try {
-    const payload = data.toString()
-    if (pendingOrder?.payload !== payload) {
-      pendingOrder = { payload, id: crypto.randomUUID() }
-    }
-    data.set('order_id', pendingOrder.id)
     const response = await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
       method: 'POST',
       body: data,
@@ -158,10 +119,9 @@ form.addEventListener('submit', async (event) => {
       return
     }
     feedback.textContent = 'Đã gửi đơn hàng thành công.'
-    pendingOrder = undefined
     form.reset()
   } catch {
-    feedback.textContent = 'Chưa xác nhận được đơn hàng. Bạn có thể bấm Đặt hàng để thử lại.'
+    feedback.textContent = 'Chưa xác nhận được đơn hàng. Vui lòng liên hệ cửa hàng để kiểm tra.'
   } finally {
     submit.disabled = false
   }
