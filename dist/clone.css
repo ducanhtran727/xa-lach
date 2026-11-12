@@ -16,32 +16,130 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
-#w-__popup_default__ {
-  z-index: 1000001;
-  max-height: 95vh;
-  overflow-y: auto;
-}
-
-#w-__popup_default__ .popup-wrapper {
-  min-height: 676px;
-}
-
 .order-open {
   overflow: hidden;
 }
 
-.region-input {
-  background: transparent;
-  padding-inline: 10px;
+.order-dialog {
+  width: min(420px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  padding: 16px;
+  border: 1px solid #ccd7b6;
+  border-radius: 14px;
+  background: #f5f8eb;
+  color: #18391b;
+  font: 14px/1.4 'Open Sans', sans-serif;
 }
 
-#w-rcz96ssh button {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background: transparent;
+.order-dialog::backdrop {
+  background: rgb(17 24 13 / 65%);
+}
+
+.order-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.order-header h2 {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.order-close {
+  flex: 0 0 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #e5edd7;
+  color: inherit;
+  font-size: 22px;
   cursor: pointer;
+}
+
+.order-field {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.order-field :is(input, textarea) {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px;
+  border: 1px solid #a9bc9b;
+  border-radius: 7px;
+  background: #fff;
+  color: inherit;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.order-field textarea {
+  resize: vertical;
+}
+
+.order-packages {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 10px;
+  padding: 7px 9px 9px;
+  border: 1px solid #bdcfa8;
+  border-radius: 8px;
+}
+
+.order-packages legend {
+  padding-inline: 4px;
+  font-weight: 700;
+}
+
+.order-package {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 1px solid #cdd9bf;
+  border-radius: 7px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.order-package:has(:checked) {
+  border-color: #548045;
+  background: #eef5e7;
+}
+
+.order-package input {
+  width: 17px;
+  height: 17px;
+  accent-color: #386431;
+}
+
+.order-package small {
+  display: block;
+  font-size: 12px;
+}
+
+.order-feedback:not(:empty) {
+  margin-bottom: 8px;
+}
+
+.order-submit {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 8px;
+  background: #ba1510;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.order-submit:disabled {
+  opacity: .65;
+  cursor: wait;
 }
 
 .order-summary {

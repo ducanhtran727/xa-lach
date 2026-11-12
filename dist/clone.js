@@ -1,3 +1,6 @@
+// Dán URL Web App Google Apps Script kết thúc bằng /exec vào đây.
+const GOOGLE_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw7-FKDlmkvl5PbE1zDysY7_OTmAN4Acl7lAI5FI_ezDHHurXA6vCex3IiqePuAMqVVjg/exec'
+
 const byId = (id) => document.getElementById(id)
 const gallery = byId('w-jzvgamuh')
 const slides = [...gallery.querySelectorAll('.gallery-view-item')]
@@ -59,43 +62,25 @@ function updateTimer() {
 updateTimer()
 setInterval(updateTimer, 1000)
 
-const popup = byId('w-__popup_default__')
-const backdrop = byId('popup-backdrop')
+const popup = byId('order-dialog')
 const form = byId('ykt0scmz')
-let opener
+const feedback = popup.querySelector('.order-feedback')
 
-popup.setAttribute('role', 'dialog')
-popup.setAttribute('aria-modal', 'true')
-popup.setAttribute('aria-label', 'Đặt mua ngay')
-
-function openOrder(trigger) {
-  opener = trigger
-  popup.classList.remove('d-none')
-  backdrop.classList.remove('d-none')
+function openOrder() {
+  popup.showModal()
   document.body.classList.add('order-open')
-  byId('w-ph5ut51q').focus()
-}
-
-function closeOrder() {
-  popup.classList.add('d-none')
-  backdrop.classList.add('d-none')
-  document.body.classList.remove('order-open')
-  opener?.focus()
 }
 
 for (const id of ['w-qbrn1zhe', 'w-2hmqlp43']) {
-  const trigger = byId(id)
-  action(trigger, 'Đặt mua ngay', () => openOrder(trigger))
+  action(byId(id), 'Đặt mua ngay', openOrder)
 }
-action(byId('w-ph5ut51q'), 'Đóng biểu mẫu đặt hàng', closeOrder)
-backdrop.addEventListener('click', closeOrder)
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && !popup.classList.contains('d-none')) closeOrder()
+popup.querySelector('.order-close').addEventListener('click', () => popup.close())
+popup.addEventListener('close', () => {
+  document.body.classList.remove('order-open')
+  if (!submit.disabled) feedback.textContent = ''
 })
 
-const submit = byId('w-rcz96ssh').querySelector('button')
-submit.removeAttribute('style')
-submit.setAttribute('aria-label', 'Xem thông tin đặt hàng')
+const submit = form.querySelector('button[type="submit"]')
 
 const order = document.createElement('dialog')
 order.className = 'order-summary'
@@ -123,11 +108,20 @@ order.querySelector('.copy-order').addEventListener('click', async () => {
     copyStatus.textContent = 'Thông tin đã được chọn. Bạn có thể dùng lệnh sao chép của thiết bị.'
   }
 })
-form.addEventListener('submit', (event) => {
+let pendingOrder
+
+const sheetsErrors = {
+  invalid_order: 'Google Sheets từ chối dữ liệu. Vui lòng kiểm tra lại thông tin đơn hàng.',
+  busy: 'Hệ thống đang bận. Vui lòng thử lại sau vài giây.',
+  sheet_write: 'Google Sheets chưa ghi được đơn. Vui lòng liên hệ cửa hàng.',
+}
+
+form.addEventListener('submit', async (event) => {
   event.preventDefault()
-  const data = new FormData(form)
-  const address = ['address', 'commune_id', 'district_id', 'province_id']
-    .map((name) => data.get(name).trim()).join(', ')
+  if (submit.disabled) return
+
+  const data = new URLSearchParams(new FormData(form))
+  const address = data.get('address').trim()
   orderText.value = [
     'Đặt hạt giống xà lách Sanchu F1',
     `Họ tên: ${data.get('full_name').trim()}`,
@@ -136,5 +130,39 @@ form.addEventListener('submit', (event) => {
     `Gói đã chọn: ${data.get('package')}`,
   ].join('\n')
   copyStatus.textContent = ''
-  order.showModal()
+  if (!GOOGLE_SHEETS_WEB_APP_URL) {
+    order.showModal()
+    return
+  }
+
+  // Giữ cùng mã đơn khi khách gửi lại cùng dữ liệu sau lỗi mạng.
+  submit.disabled = true
+  feedback.textContent = 'Đang gửi đơn hàng…'
+  try {
+    const payload = data.toString()
+    if (pendingOrder?.payload !== payload) {
+      pendingOrder = { payload, id: crypto.randomUUID() }
+    }
+    data.set('order_id', pendingOrder.id)
+    const response = await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+      method: 'POST',
+      body: data,
+      credentials: 'omit',
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!response.ok) throw new Error('Apps Script HTTP ' + response.status)
+    const result = await response.json()
+    if (result.ok !== true) {
+      feedback.textContent = sheetsErrors[result.code] ||
+        'Apps Script đã nhận yêu cầu nhưng chưa ghi đơn. Vui lòng liên hệ cửa hàng.'
+      return
+    }
+    feedback.textContent = 'Đã gửi đơn hàng thành công.'
+    pendingOrder = undefined
+    form.reset()
+  } catch {
+    feedback.textContent = 'Chưa xác nhận được đơn hàng. Bạn có thể bấm Đặt hàng để thử lại.'
+  } finally {
+    submit.disabled = false
+  }
 })
