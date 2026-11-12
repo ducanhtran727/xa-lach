@@ -63,6 +63,7 @@ updateTimer()
 setInterval(updateTimer, 1000)
 
 const popup = byId('order-dialog')
+const successPopup = byId('order-success')
 const form = byId('ykt0scmz')
 const feedback = popup.querySelector('.order-feedback')
 
@@ -76,8 +77,11 @@ for (const id of ['w-qbrn1zhe', 'w-2hmqlp43']) {
 }
 popup.querySelector('.order-close').addEventListener('click', () => popup.close())
 popup.addEventListener('close', () => {
-  document.body.classList.remove('order-open')
+  if (!successPopup.open && !popup.open) document.body.classList.remove('order-open')
   if (!submit.disabled) feedback.textContent = ''
+})
+successPopup.addEventListener('close', () => {
+  if (!popup.open) document.body.classList.remove('order-open')
 })
 
 const submit = form.querySelector('button[type="submit"]')
@@ -118,8 +122,11 @@ form.addEventListener('submit', async (event) => {
         'Apps Script đã nhận yêu cầu nhưng chưa ghi đơn. Vui lòng liên hệ cửa hàng.'
       return
     }
-    feedback.textContent = 'Đã gửi đơn hàng thành công.'
     form.reset()
+    feedback.textContent = ''
+    popup.close()
+    successPopup.showModal()
+    document.body.classList.add('order-open')
   } catch {
     feedback.textContent = 'Chưa xác nhận được đơn hàng. Vui lòng liên hệ cửa hàng để kiểm tra.'
   } finally {

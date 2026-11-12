@@ -146,6 +146,20 @@ textarea:focus-visible {
   cursor: wait;
 }
 
+.order-success {
+  text-align: center;
+  padding: 24px;
+}
+
+.order-success h2 {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.order-success p {
+  margin: 8px 0 18px;
+}
+
 #w-1nncgr3v.order-bar {
   height: auto;
   bottom: 0;
